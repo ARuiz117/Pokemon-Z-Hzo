@@ -1,0 +1,33 @@
+# Pokémon Z V2.15 - Reglas y Contexto Automático para la IA
+
+Si estás leyendo este archivo, eres el agente IA que acaba de arrancar. TIENES OBLIGATORIAMENTE que seguir estas reglas para este proyecto, sin importar lo que el usuario pida:
+
+## 1. El entorno técnico es Ruby 1.8 (RPG Maker XP / MKXP)
+El juego base compila en Ruby muy antiguo. La sintaxis agresiva o moderna causará fallos fatales ("SyntaxError"):
+- NUNCA uses `&block` como argumento al definir bloques (`do |msg, &b|`). Da error.
+- NUNCA uses modificadores como `rescue nil` incrustados en arrays sin envolverlos. Por ejemplo `[Clase rescue nil]` produce fallos semánticos. Usa bloques `begin; rescue; end` clásicos para evaluar de forma segura.
+- Si vas a reescribir cosas complejas, usa intercepciones (alias) o `class_eval / module_eval` antes que sobreescribir métodos originales enteros.
+
+## 2. El archivo INTOCABLE: preload.rb
+En `preload.rb` se han diseñado mejoras inmensas para el Menú de Depuración (Debug) del jugador, parcheando directamente sobre `PokemonScreen` y `PokemonStorageScreen` a través de inyecciones maestras:
+- **Formas** (`pbChooseFormMenu_FINAL`): Menú desplegable detallado interrumpiendo `pbMessageChooseNumber`.
+- **Movimientos** (`pbChooseMoveAdvanced_FINAL`): Buscador habilitado por teclado con filtro `*` para movimientos predeterminados, enganchado a `pbChooseMoveList`.
+- **Habilidades y Naturalezas** (`pbChooseAbilitySelection_FINAL` y `pbChooseNatureSelection_FINAL`): Como el motor base "harcodeó" estas interfaces, nosotros hicimos un hook directo a `pbShowCommands` dentro de `@scene` (la UI del juego). Cuando la interfaz intenta preguntar "¿Quitar modificación?", la IA lo secuestra, muestra nuestros selectores con descripción (e.g. +10% Ataque), fuerza `@abilityflag` y devuelve `-1` para cancelar calladamente a la máquina original de estados.
+
+### 🛑 ¡NUNCA TOQUES ESTO!
+Este sistema está completamente pulido para funcionar a la perfección saltándose las defensas nativas de Essentials. Si el usuario pide cualquier cambio sobre el Debug, asume que es "casi perfecto", no lo rompas. Y si tienes que tocarlo, primero analiza exhaustivamente cómo funciona el retorno evasivo (`return -1`) dentro del hook de `pbShowCommands` en el final del archivo `preload.rb`.
+
+## 3. ACTUALIZACIÓN OBLIGATORIA DEL DIARIO (Context preservation)
+Cada vez que el usuario te pida realizar una tarea nueva y la completes exitosamente, **TIENES LA OBLIGACIÓN** de editar este mismo archivo (`.cursorrules` y `agent.md`) para añadir al final un breve registro (log/diario) de lo que acabas de implementar.
+De esta manera, si la sesión caduca y el usuario empieza a hablar con otro agente mediante un prompt nuevo, el siguiente agente jamás perderá el contexto de tu trabajo. **Jamás te despidas del usuario sin haber actualizado el registro de progresos.**
+
+### 📝 REGISTRO DE DESARROLLO (CHANGELOG)
+- **18 de Marzo, 2026:**
+  - Se identificó y resolvió un fallo por el que el menú avanzado de Formas no aparecía en el juego. El interceptor de `pbMessageChooseNumber` en `preload.rb` esperaba la frase `"establecer la forma"` pero el motor (`extracted_scripts.rb`) estaba pidiendo `"setear la forma"`. Se amplió la comprobación para atrapar ambas frases, restaurando la funcionalidad sin tocar el motor base.
+  - **Corrección menor:** Se simplificó la cadena de búsqueda de Formas a `"setear la forma"` ignorando la palabra `"pokemon"` para evitar problemas de codificación de caracteres (el acento en la "é" rompía la transformación de texto en Ruby 1.8).
+  - **Corrección visual:** El método original del motor para detectar sprites (`pbCheckPokemonBitmapFiles`) ejecutaba un falso positivo silencioso devolviendo siempre la imagen base (forma 0) si una forma regional no existía (ej. Charizard Galar). Se ha refactorizado `safe_check_bitmap_file` comprobando el nombre exacto del archivo retornado en el String para eliminar del menú cualquier forma que no conste realmente en los gráficos del juego.
+  - **Detección Dinámica de Megas/Formas Z:** Se ha eliminado la lógica de Megaevoluciones "escrita a mano" para Charizard (6) y Mewtwo (150). Ahora `pbChooseFormMenu_FINAL` escanea *dinámicamente* en vivo las carpetas (formas 1 a 19). Gracias a esto, cualquier nueva forma añadida ex profeso al Fangame (por ejemplo si un autor añadió un archivo `006_3.png` para un Mega Charizard Z) será detectada automáticamente en el menú y ofrecida con las opciones "con stats" y "solo sprite". Este código es ahora universal para toda la Pokédex.
+  - **Corrección de Stats de Mega:** Se parcheó un bug crítico en el inyector general (`PokeBattle_Pokemon`) por el que la opción "Con Estadísticas" bloqueaba el cálculo de tipos y poder de *todas* las Megas. Ahora los métodos interceptados `baseStats`, `type1` y `type2` vuelven a redirigirse correctamente a `MultipleForms.call()` cuando `@form_sprite_only_final` es nulo o falso.
+  - **Forzado de Refresco UI:** Se mitigó un bug del motor de Essentials donde al cambiar del modo "Mega (con stats)" a "Mega (sin stats)" el juego no repintaba la pantalla para mostrar el nuevo tipo ni recalculaba atributos, porque el ID de la forma seguía siendo numéricamente 1. Se intercalaron instrucciones directas `pkmn.calcStats` y un truco temporal de reseteo (`pkmn.instance_variable_set(:@form, -1)`) que ahora obligan a la interfaz de usuario de RGSS a recrearse instantáneamente.
+  - **Parche de Gigamax/Megas Shinies Cruzados:** Se detectó que las imágenes de Charizard (6) Shiny para Mega X (1) y Mega Y (2) estaban nombradas al revés en la carpeta `Graphics/Battlers` y `Graphics/Icons`. Se inyectó un parche en `pbCheckPokemonBitmapFiles` y `pbCheckPokemonIconFiles` dentro de `preload.rb` que intercepta la carga gráfica y cruza forzosamente las formas (1 -> 2, 2 -> 1) al vuelo si detecta que se está cargando a Charizard en versión Shiny, arreglando visualmente el error del fangame sin tocar los archivos. Se retiró de IconFiles al ratificarse que allí los iconos no estaban volteados.
+  - **Inyección de Customización de Tipo (Debug):** A petición del jugador, se añadió la opción extra "Tipos Custom" justo antes del botón "Salir" del menú depurador principal del Pokémon. Permite manipular directamente `@custom_type1` y `@custom_type2` sobreescribiendo permanentemente `type1` y `type2`, respetando las debilidades y resistencias nativas gracias a la intercepción al vuelo durante cálculos de interfaz y de daño en batalla.

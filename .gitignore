@@ -1,0 +1,15 @@
+# --- BLOQUEAR TODO POR DEFECTO ---
+*
+.*
+
+# --- PERMITIR SOLO ARCHIVOS DEL MOD ---
+!.gitignore
+!.cursorrules
+!preload.rb
+!mkxp.json
+!CAMBIOS_REALIZADOS.md
+!README.md
+
+# --- PERMITIR CARPETA DE CAPTURAS ---
+!screenshots/
+!screenshots/*
