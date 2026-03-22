@@ -573,6 +573,12 @@ module Kernel
     # Establecer el flag en el Pokémon
     pkmn.instance_variable_set(:@form_sprite_only_final, sprite_only) rescue nil
     
+    # Establecer la forma real del Pokémon
+    pkmn.form = form_id
+    
+    # Guardar forma persistente para mantenerla después del combate
+    pkmn.instance_variable_set(:@persistent_form, form_id) rescue nil
+    
     # Forzar el recalculo de Stats
     pkmn.calcStats
     
@@ -749,6 +755,16 @@ module Graphics
                 return 15 if @form == 2
               end
               frm=@form_sprite_only_final ? 0 : @form; o=@form; @form=frm; r=MultipleForms.call("height", self); r=__mf_height if r.nil?; @form=o; return r
+            end
+            
+            # Hook para mantener forma persistente
+            alias old_calcStats calcStats
+            def calcStats(*args)
+              persistent = @persistent_form rescue nil
+              old_calcStats(*args)
+              if persistent && @form != persistent
+                @form = persistent
+              end
             end
           end
           unless method_defined?(:pbCheckPokemonBitmapFiles_H)
