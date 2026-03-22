@@ -666,6 +666,33 @@ module Graphics
           end
         end
 
+        def Kernel.pbChooseStatsMenu_FINAL(pkmn)
+          return if !pkmn
+          
+          stats = [["HP", 0, "hp"], ["Ataque", 1, "attack"], ["Defensa", 2, "defense"], 
+                   ["Ataque Especial", 4, "spatk"], ["Defensa Especial", 5, "spdef"], ["Velocidad", 3, "speed"]]
+          
+          loop do
+            cmd = stats.map { |name, idx, var| _INTL("{1}: {2}", name, pkmn.send(var)) } + [_INTL("Salir")]
+            choice = Kernel.pbMessage(_INTL("Selecciona un stat:"), cmd, -1)
+            break if choice < 0 || choice == 6
+            
+            if choice < 6
+              valor = pbMessageFreeText(_INTL("Nuevo {1}:", stats[choice][0]), pkmn.send(stats[choice][2]).to_s, false, 6)
+              if valor && valor.match(/^\d+$/)
+                if choice == 0
+                  pkmn.hp = valor.to_i
+                else
+                  pkmn.iv[stats[choice][1]] = 31
+                  pkmn.ev[stats[choice][1]] = 252
+                  pkmn.instance_variable_set("@#{stats[choice][2]}".to_sym, valor.to_i)
+                end
+                Kernel.pbMessage(_INTL("{1} cambiado a {2}", stats[choice][0], valor))
+              end
+            end
+          end
+        end
+
 
         Object.class_eval <<-'CODE'
           class PokeBattle_Pokemon
@@ -1442,7 +1469,8 @@ module Graphics
                   if is_debug_menu
                     new_commands = commands.clone
                     idx_salir = new_commands.length - 1
-                    new_commands.insert(idx_salir, "Tipos Custom")
+                    new_commands.insert(idx_salir, "Estadísticas")
+                    new_commands.insert(idx_salir + 1, "Tipos Custom")
                     
                     res = pbShowCommands_orig_abil_hook(helptext, new_commands, index)
                     if res < idx_salir && res != -1
@@ -1450,11 +1478,17 @@ module Graphics
                     elsif res == idx_salir
                       pkmn = $_debug_pkmn || $last_debug_pkmn_final
                       if pkmn
+                        Kernel.pbChooseStatsMenu_FINAL(pkmn)
+                      end
+                      return 99 # ID ficticio para que el loop original rebote
+                    elsif res == idx_salir + 1
+                      pkmn = $_debug_pkmn || $last_debug_pkmn_final
+                      if pkmn
                         Kernel.pbChooseTypeMenu_FINAL(pkmn)
                       end
                       return 99 # ID ficticio para que el loop original rebote
-                    elsif res > idx_salir
-                      return res - 1
+                    elsif res > idx_salir + 1
+                      return res - 2
                     else
                       return res
                     end
