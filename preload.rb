@@ -175,6 +175,118 @@ module Kernel
     rescue; return ""; end
   end
 
+  def pbGetItemHelp_FINAL(item_id)
+    return "" if item_id <= 0
+    begin
+      name = PBItems.getName(item_id)
+      desc = pbGetMessage(MessageTypes::ItemDescriptions, item_id).to_s
+      # Intentar obtener tipo del objeto si está disponible
+      item_type = ""
+      begin
+        if defined?(PBItemData) && PBItemData.respond_to?(:new)
+          item_data = PBItemData.new(item_id)
+          if item_data.respond_to?(:type)
+            item_type = PBTypes.getName(item_data.type) rescue ""
+          end
+        end
+      rescue; end
+      
+      # Buscar referencias a tipos en la descripción
+      type_hints = []
+      all_types = []
+      begin
+        for i in 0..PBTypes.maxValue
+          begin
+            tname = PBTypes.getName(i)
+            all_types.push([i, tname.downcase]) if tname && tname != ""
+          rescue; end
+        end
+      rescue; end
+      
+      desc_lower = desc.downcase
+      all_types.each do |type_id, type_name|
+        if desc_lower.include?(type_name) || name.downcase.include?(type_name)
+          type_hints.push(PBTypes.getName(type_id).upcase) rescue nil
+        end
+      end
+      
+      type_str = type_hints.uniq.first || item_type || ""
+      type_prefix = type_str != "" ? "[" + type_str + "] " : ""
+      
+      return type_prefix + desc
+    rescue; return ""; end
+  end
+
+  def pbChooseItemAdvanced_FINAL(pkmn, msgwindow=nil)
+    return 0 if !pkmn
+    
+    # Crear lista de todos los objetos
+    all_items = []
+    begin
+      max_items = PBItems.maxValue rescue 500
+      for i in 1...max_items
+        begin
+          name = PBItems.getName(i)
+          if name && name != ""
+            all_items.push([i, name])
+          end
+        rescue
+          next
+        end
+      end
+    rescue
+      # Fallback si hay error
+    end
+    
+    all_items.sort! { |a, b| a[1] <=> b[1] }
+    filter = ""
+    
+    loop do
+      begin
+        msgwindow.visible = true if msgwindow
+        cmds = []; ids = []; help = []
+        
+        label = filter == "" ? "[BUSCADOR: ...]" : ("[FILTRO: " + filter + "]")
+        cmds.push(label); ids.push(-1); help.push("Escribe para filtrar por nombre o descripción. Busca por tipo (ej: dragón).")
+        cmds.push("[QUITAR OBJETO]"); ids.push(-2); help.push("Quita el objeto equipado del Pokémon.")
+        
+        for it in all_items
+          desc = pbGetItemHelp_FINAL(it[0])
+          # Buscar por nombre, descripción o tipo
+          match = false
+          if filter == ""
+            match = true
+          else
+            filter_lower = filter.downcase
+            match = it[1].downcase.include?(filter_lower) || desc.downcase.include?(filter_lower)
+          end
+          
+          if match
+            pre = (pkmn.item == it[0]) ? "* " : "  "
+            cmds.push(pre + it[1]); ids.push(it[0]); help.push(desc)
+          end
+        end
+        
+        idx = Kernel.pbShowCommandsWithHelp(msgwindow, cmds, help, -1)
+        return 0 if idx < 0
+        sel_id = ids[idx]
+        if sel_id == -1
+          filter = Kernel.pbMessageFreeText(_INTL("Buscar:"), filter, false, 20)
+        elsif sel_id == -2
+          # Quitar objeto
+          pkmn.setItem(0) if pkmn.respond_to?(:setItem)
+          return 0
+        else
+          # Equipar objeto seleccionado
+          pkmn.setItem(sel_id) if pkmn.respond_to?(:setItem)
+          return sel_id
+        end
+      rescue
+        return 0
+      end
+    end
+  end
+
   def pbChooseAbilitySelection_FINAL(pkmn, msgwindow=nil)
     natural_abs = []
     begin; alist = pkmn.getAbilityList; for a in alist; natural_abs.push(a[0]); end; rescue; end
@@ -1487,6 +1599,7 @@ module Graphics
                     idx_salir = new_commands.length - 1
                     new_commands.insert(idx_salir, "Estadísticas")
                     new_commands.insert(idx_salir + 1, "Tipos Custom")
+                    new_commands.insert(idx_salir + 2, "Dar Objeto")
                     
                     res = pbShowCommands_orig_abil_hook(helptext, new_commands, index)
                     if res < idx_salir && res != -1
@@ -1503,8 +1616,14 @@ module Graphics
                         Kernel.pbChooseTypeMenu_FINAL(pkmn)
                       end
                       return 99 # ID ficticio para que el loop original rebote
-                    elsif res > idx_salir + 1
-                      return res - 2
+                    elsif res == idx_salir + 2
+                      pkmn = $_debug_pkmn || $last_debug_pkmn_final
+                      if pkmn
+                        Kernel.pbChooseItemAdvanced_FINAL(pkmn, nil)
+                      end
+                      return 99 # ID ficticio para que el loop original rebote
+                    elsif res > idx_salir + 2
+                      return res - 3
                     else
                       return res
                     end
