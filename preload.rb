@@ -1581,6 +1581,8 @@ module Graphics
               cw = @sprites["fightwindow"]
               battler = @battle.battlers[index]
               cw.battler = battler
+              $_fight_menu_battler = battler # Soporte para eficacia visual
+              $_fight_menu_battle = @battle   # Soporte para eficacia visual
               lastIndex = @lastmove[index]
               # Asegurar que empezamos en la página correcta si el último índice fue > 3
               if lastIndex >= 4 && lastIndex < 8
@@ -1637,6 +1639,8 @@ module Graphics
                     pbPlayDecisionSE()
                     ret = cw.index + (cw.page * 4)
                     @lastmove[index] = ret
+                    $_fight_menu_battler = nil
+                    $_fight_menu_battle = nil
                     return ret
                   end
                 elsif Input.trigger?(Input::A) # Mega Evolución
@@ -1647,6 +1651,8 @@ module Graphics
                   end
                 elsif Input.trigger?(Input::B)
                   @lastmove[index] = (cw.index == 8) ? 0 : cw.index + (cw.page * 4)
+                  $_fight_menu_battler = nil
+                  $_fight_menu_battle = nil
                   pbPlayCancelSE()
                   return -1
                 end
