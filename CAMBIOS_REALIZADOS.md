@@ -37,7 +37,22 @@ He transformado el modo depurador en una suite de herramientas profesional:
 -   **Buscador Universal de Especies y Movimientos**: Los menús de "Añadir Pokémon" y "Enseñar Movimiento" ahora cuentan con el mismo motor de búsqueda avanzada, permitiendo encontrar cualquier especie o técnica por nombre o número de Pokédex de forma instantánea.
 -   **Corrección de Stats Dinámicos**: Integración de recálculo instantáneo de estadísticas (`calcStats`) cada vez que se inyecta un cambio en la forma, tipo, estadísticas o naturaleza mediante las herramientas Debug, evitando tener que meter/sacar al Pokémon del PC para aplicar los cambios.
 
-## 4. Mejoras en UI y Calidad de Vida (QoL)
+## 4. Evolución del Sistema de Combate y Equipo
+
+He llevado el motor de batalla a un nuevo nivel de profundidad y comodidad:
+
+-   **Sistema de 8 Movimientos**: He roto la limitación clásica de 4 movimientos. Ahora los Pokémon pueden conocer y utilizar hasta 8 ataques simultáneamente.
+    *   **Interfaz Paginada**: El menú de lucha en combate y la pantalla de Datos permiten navegar entre dos páginas de movimientos (`MOV 1` / `MOV 2`).
+    *   **Puntero de Selección**: Implementación de un cursor intuitivo que gestiona la navegación entre páginas y destaca los movimientos aprendidos de forma dinámica.
+-   **Sincronización Total PC-Combate ("Ironclad Sync")**: Integración real del PC dentro de las batallas:
+    *   **Cambio Dinámico**: Puedes acceder al PC desde el menú de equipo en pleno combate para traer refuerzos o cambiar de estrategia.
+    *   **Detección de Integridad**: Si sustituyes al Pokémon activo mediante el PC, el sistema detecta la desincronización, ejecuta automáticamente la animación de cambio y **consume el turno del jugador**, manteniendo el equilibrio y la estabilidad del combate.
+-   **Seguimiento Independiente (Following Pokémon)**: Mejora del sistema de acompañantes en el overworld:
+    *   **Desvinculación del Líder**: Ahora puedes elegir cualquier Pokémon de tu equipo para que te siga por el mapa mediante la nueva opción "**Sacar de la Poké Ball**", independientemente de quién esté en la primera posición para combatir.
+    *   **Gestión de Poké Ball**: Se ha añadido la opción de "**Meter en la Poké Ball**" para ocultar al acompañante al vuelo sin risk de crashes.
+    *   **Persistencia Geográfica**: El acompañante sigue vinculado al Pokémon elegido aunque este se mueva de posición en el equipo.
+
+## 5. Mejoras en UI y Calidad de Vida (QoL)
 
 -   **HUD de Equipo y PC**: He integrado un botón de PC en el equipo que sincroniza el sistema de almacenamiento en tiempo real.
 -   **Navegación Fluida**: He programado el cursor para que salte automáticamente huecos vacíos y vuelva al último Pokémon disponible al subir desde los botones inferiores, evitando "puntos muertos" en la interfaz.
@@ -45,16 +60,15 @@ He transformado el modo depurador en una suite de herramientas profesional:
     *   **Tecla `ç`** (o `º` según la distribución del teclado): Activa o desactiva por completo el **Modo Debug** (Modo Desarrollador) al vuelo en cualquier momento, emitiendo un sonido de confirmación.
     *   **Tecla `+`** (Teclado numérico o junto a Enter): Cura a todo el equipo al instante sin animaciones ni interrupciones.
     *   **Tecla `-`** (Teclado numérico o guion): Añade 99 Caramelos Raros directamente a tu mochila al instante.
-    *   *(En reserva)* **Tecla `F3`**: Se ha dejado preparado en el código (actualmente comentado/inactivo) un atajo para alternar visualizaciones de sprites Shinies y Megas globales en el futuro.
 -   **Resumen Detallado**: El menú de resumen ahora muestra una marquesina deslizante con la descripción de los objetos equipados, ideal para conocer el efecto de ítems nuevos o modificados.
 
-## 5. Estabilidad y Corrección de Errores
+## 6. Estabilidad y Corrección de Errores
 
 -   **Sincronización de Sprites**: He detectado y corregido fallos menores en las rutas de los sprites y los nombres de archivos en formas alternativas (como Mewtwo Mega y Typhlosion Hisui), asegurando que el juego siempre encuentre el gráfico correcto.
--   **Eliminación de Crashes**: He eliminado el error "RepExp" que ocurría al interactuar con slots vacíos y he limpiado los "botones fantasma" que causaban comportamientos erráticos en el menú.
+-   **Eliminación de Crashes**: He eliminado el error "RepExp" que ocurría al interactuar con slots vacíos, el fallo de `TypeError` al guardar el follower, y he limpiado los "botones fantasma" que causaban comportamientos erráticos en el menú.
 -   **Resolución 1080p**: He optimizado el escalado para pantallas modernas sin pérdida de calidad visual.
 
-## 6. Portabilidad y Sistema de Guardado (Modo Portable)
+## 7. Portabilidad y Sistema de Guardado (Modo Portable)
 
 He configurado el motor del juego para que funcione en **modo totalmente portable**:
 - **Saves Locales**: A diferencia del original que guarda en carpetas ocultas del sistema (`%AppData%`), mi versión almacena las partidas directamente en la carpeta del juego (`LastSave.dat` y `Partidas Guardadas`).
