@@ -1489,6 +1489,7 @@ module Graphics
             selmove = (@page == 3) ? 4 : 0
             @sprites["movesel"].index = selmove
             switching = false
+            oldselmove = 0
             drawMoveSelection(@pokemon, 0) # Inicializar vista correcta (página 1 o 2)
             drawSelectedMove(@pokemon, 0, @pokemon.moves[selmove].id)
             loop do
@@ -1514,7 +1515,8 @@ module Graphics
                     @sprites["movepresel"].visible = false
                     switching = false
                     drawMoveSelection(@pokemon, 0)
-                    drawSelectedMove(@pokemon, 0, @pokemon.moves[selmove].id)
+                    m = @pokemon.moves[selmove]
+                    drawSelectedMove(@pokemon, 0, m ? m.id : 0)
                   end
                 end
               end
@@ -1522,12 +1524,14 @@ module Graphics
                 selmove = (selmove + 1) % 8
                 @sprites["movesel"].index = selmove
                 drawMoveSelection(@pokemon, 0)
-                drawSelectedMove(@pokemon, 0, @pokemon.moves[selmove].id)
+                m = @pokemon.moves[selmove]
+                drawSelectedMove(@pokemon, 0, m ? m.id : 0)
               elsif Input.trigger?(Input::UP)
                 selmove = (selmove - 1) % 8
                 @sprites["movesel"].index = selmove
                 drawMoveSelection(@pokemon, 0)
-                drawSelectedMove(@pokemon, 0, @pokemon.moves[selmove].id)
+                m = @pokemon.moves[selmove]
+                drawSelectedMove(@pokemon, 0, m ? m.id : 0)
               end
             end
             @sprites["movesel"].visible = false
