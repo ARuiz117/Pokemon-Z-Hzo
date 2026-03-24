@@ -1577,16 +1577,190 @@ module Graphics
               alias pbFightMenu_orig_eff_hook pbFightMenu
             end
             def pbFightMenu(index)
-              $_fight_menu_battler = @battle.battlers[index]
-              $_fight_menu_battle = @battle
-              ret = pbFightMenu_orig_eff_hook(index)
-              $_fight_menu_battler = nil
-              $_fight_menu_battle = nil
-              return ret
+              pbShowWindow(FIGHTBOX)
+              cw = @sprites["fightwindow"]
+              battler = @battle.battlers[index]
+              cw.battler = battler
+              lastIndex = @lastmove[index]
+              # Asegurar que empezamos en la página correcta si el último índice fue > 3
+              if lastIndex >= 4 && lastIndex < 8
+                cw.page = 1
+              else
+                cw.page = 0
+              end
+              
+              if lastIndex == 8
+                cw.setIndex(8)
+              elsif battler.moves[lastIndex] && battler.moves[lastIndex].id != 0
+                cw.setIndex(lastIndex % 4)
+              else
+                cw.setIndex(0)
+              end
+              cw.megaButton = 0
+              cw.megaButton = 1 if @battle.pbCanMegaEvolve?(index)
+              pbSelectBattler(index)
+              pbRefresh
+              loop do
+                pbGraphicsUpdate
+                pbInputUpdate
+                pbFrameUpdate(cw)
+                if Input.trigger?(Input::LEFT) && cw.index != 8 && (cw.index & 1) == 1
+                    pbPlayCursorSE() if cw.setIndex(cw.index - 1)
+                elsif Input.trigger?(Input::RIGHT) && cw.index != 8 && (cw.index & 1) == 0
+                    pbPlayCursorSE() if cw.setIndex(cw.index + 1)
+                elsif Input.trigger?(Input::UP)
+                  if cw.index == 0 || cw.index == 1
+                    # Contar movimientos para ver si permitimos ir al botón de página
+                    total_moves = 0
+                    battler ||= @battle.battlers[index]
+                    battler.moves.each { |m| total_moves += 1 if m && m.id > 0 }
+                    if total_moves > 4
+                      pbPlayCursorSE() if cw.setIndex(8) # Ir al botón MOV 2
+                    end
+                  elsif cw.index >= 2 && cw.index < 4
+                    pbPlayCursorSE() if cw.setIndex(cw.index - 2)
+                  end
+                elsif Input.trigger?(Input::DOWN)
+                  if cw.index == 8
+                    pbPlayCursorSE() if cw.setIndex(0) # Volver al primer movimiento
+                  elsif cw.index <= 1
+                    pbPlayCursorSE() if cw.setIndex(cw.index + 2)
+                  end
+                end
+                if Input.trigger?(Input::C)
+                  if cw.index == 8
+                    # CAMBIO DE PÁGINA
+                    cw.page = (cw.page == 0) ? 1 : 0
+                    cw.refresh
+                    pbPlayDecisionSE()
+                  else
+                    pbPlayDecisionSE()
+                    ret = cw.index + (cw.page * 4)
+                    @lastmove[index] = ret
+                    return ret
+                  end
+                elsif Input.trigger?(Input::A) # Mega Evolución
+                  if @battle.pbCanMegaEvolve?(index)
+                    @battle.pbRegisterMegaEvolution(index)
+                    cw.megaButton = 2
+                    pbPlayDecisionSE()
+                  end
+                elsif Input.trigger?(Input::B)
+                  @lastmove[index] = (cw.index == 8) ? 0 : cw.index + (cw.page * 4)
+                  pbPlayCancelSE()
+                  return -1
+                end
+              end
+            end
+          end
+
+          class PokeBattle_Battler
+            unless method_defined?(:pbInitPokemon_orig_8move_hook)
+              alias pbInitPokemon_orig_8move_hook pbInitPokemon
+            end
+            def pbInitPokemon(pkmn, pkmnIndex)
+              pbInitPokemon_orig_8move_hook(pkmn, pkmnIndex)
+              # Ampliamos a 8 movimientos
+              @moves = []
+              for i in 0...8
+                if pkmn.moves[i] && pkmn.moves[i].id > 0
+                  @moves[i] = PokeBattle_Move.pbFromPBMove(@battle, pkmn.moves[i])
+                else
+                  @moves[i] = PokeBattle_Move.pbFromPBMove(@battle, PBMove.new(0))
+                end
+              end
+            end
+          end
+
+          class FightMenuDisplay
+            attr_accessor :page
+
+            unless method_defined?(:initialize_orig_8move_hook)
+              alias initialize_orig_8move_hook initialize
+            end
+            def initialize(battler, viewport=nil)
+              @page = 0
+              initialize_orig_8move_hook(battler, viewport)
+            end
+
+            unless method_defined?(:setIndex_orig_eff_hook)
+              alias setIndex_orig_eff_hook setIndex
+            end
+            def setIndex(value)
+              if value == 8
+                @index = 8
+                refresh
+                return true
+              end
+              return setIndex_orig_eff_hook(value)
+            end
+
+            unless method_defined?(:refresh_orig_8move_hook)
+              alias refresh_orig_8move_hook refresh
+            end
+            def refresh
+              return if !@battler
+              
+              # SINCRONIZACIÓN AGRESIVA PARA EVITAR DATOS OBSOLETOS
+              if @battler.pokemon && @battler.pokemon.moves && (@battler.moves.length < 8 || !@battler.moves[4])
+                # Re-sincronizar los 8 movimientos desde el objeto Pokemon
+                for i in 0...8
+                  pkmn_m = @battler.pokemon.moves[i]
+                  if pkmn_m && pkmn_m.id > 0
+                    @battler.moves[i] = PokeBattle_Move.pbFromPBMove(@battle, pkmn_m)
+                  else
+                    @battler.moves[i] = PokeBattle_Move.pbFromPBMove(@battle, PBMove.new(0))
+                  end
+                end
+              end
+
+              # Sincronizar página con los botones
+              @buttons.page = @page if @buttons && @buttons.respond_to?(:page=)
+              
+              if @index == 8
+                @window.index = -1 rescue nil
+                # Usar movimientos de la página actual para los botones
+                page_moves = @battler.moves[(@page * 4), 4] || []
+                while page_moves.respond_to?(:length) && page_moves.length < 4
+                  page_moves.push(PBMove.new(0))
+                end
+                
+                @buttons.refresh(8, page_moves, @megaButton) if @buttons
+                return
+              end
+              
+              # Lógica para índices 0-3 pero con offset de página
+              commands = []
+              # Re-poblar ventana de comandos con los movimientos de la página actual
+              current_moves = @battler.moves[(@page * 4), 4] || []
+              # ASEGURAR 4 ELEMENTOS PARA EVITAR CRASH EN FightMenuButtons
+              while current_moves.respond_to?(:length) && current_moves.length < 4
+                current_moves.push(PBMove.new(0))
+              end
+              
+              for i in 0...4
+                break if !current_moves[i] || current_moves[i].id == 0
+                commands.push(current_moves[i].name)
+              end
+              @window.commands = commands
+              
+              selmove = current_moves[@index]
+              if selmove
+                movetype = PBTypes.getName(selmove.type)
+                if selmove.totalpp == 0
+                  @info.text = _ISPRINTF("{1:s}PP: ---<br>TIPO/{2:s}", @ctag, movetype)
+                else
+                  @info.text = _ISPRINTF("{1:s}PP: {2: 2d}/{3: 2d}<br>TIPO/{4:s}",
+                    @ctag, selmove.pp, selmove.totalpp, movetype)
+                end
+              end
+              @buttons.refresh(@index, current_moves, @megaButton) if @buttons
             end
           end
 
           class FightMenuButtons
+            attr_accessor :page
+            
             unless method_defined?(:update_orig_eff_hook)
               alias update_orig_eff_hook update
               attr_accessor :hover_index
@@ -1613,8 +1787,47 @@ module Graphics
               alias refresh_orig_eff_hook refresh
             end
             def refresh(index, moves, megaButton)
+              # SI RECIBIMOS LOS 8 MOVIMIENTOS (desafase detectado), REBAJAMOS A LOS 4 DE LA PÁGINA
+              # Guardamos el conteo real antes de recortar para saber si mostrar el botón de página
+              real_moves_count = 0
+              if moves && moves.respond_to?(:each)
+                moves.each { |m| real_moves_count += 1 if m && m.id > 0 }
+              end
+
+              if moves && moves.respond_to?(:length) && moves.length > 4
+                @page = 0 if !@page
+                moves = moves[(@page * 4), 4] || []
+                # Rellenar con vacíos si es necesario para evitar crashes en el original
+                while moves.length < 4
+                  moves.push(PBMove.new(0))
+                end
+              end
+              
               refresh_orig_eff_hook(index, moves, megaButton)
               return if !moves # <-- PROTECCIÓN CRÍTICA
+              
+              pbSetSmallFont(self.bitmap)
+              @page = 0 if !@page # Fallback de seguridad
+              
+              if real_moves_count > 4
+                bx, by = 6, UPPERGAP - 24 # Posición encima del primer botón
+                bw, bh = 80, 24
+                # --- DIBUJAR RECUADRO ---
+                if index == 8 # SI ESTÁ SELECCIONADO: Contorno rojo
+                  self.bitmap.fill_rect(bx-2, by-2, bw+4, bh+4, Color.new(255, 0, 0)) # Borde rojo
+                  self.bitmap.fill_rect(bx, by, bw, bh, Color.new(0, 0, 0, 180)) # Fondo semi-transparente más oscuro
+                else
+                  self.bitmap.fill_rect(bx, by, bw, bh, Color.new(0, 0, 0, 150)) # Fondo semi-transparente
+                  self.bitmap.fill_rect(bx+1, by+1, bw-2, bh-2, Color.new(255, 255, 255, 50)) # Borde interno
+                end
+
+                # --- DIBUJAR TEXTO ---
+                btn_text = (@page == 0) ? "MOV 2" : "MOV 1"
+                pbDrawTextPositions(self.bitmap, [
+                  [btn_text, bx + bw/2, by + 2, 2, Color.new(248, 248, 248), Color.new(32, 32, 32)]
+                ])
+              end
+
               old_size = self.bitmap.font.size
               
               # --- LÓGICA DEL CARRUSEL (Sólo Caja de Información Derecha) ---
