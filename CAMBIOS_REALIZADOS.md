@@ -2,6 +2,9 @@
 
 Este documento detalla los cambios técnicos y de diseño que he realizado sobre el juego base (Versión 2.15) para elevar la calidad, la accesibilidad y la facilidad de depuración del proyecto.
 
+> [!NOTE]
+> **Versión Dual**: He organizado el proyecto en dos carpetas dentro de [`Versiones/`](./Versiones) para que los jugadores elijan entre la experiencia original de **4 movimientos** (Classic) o la nueva de **8 movimientos** (Expanded).
+
 ## 1. Justificación Técnica: Inyección vía `preload.rb`
 
 A diferencia del método tradicional de modificar los scripts internos del programa con el que se creó el juego (RPG Maker XP / Essentials), he optado por una **inyección dinámica** a través del archivo `preload.rb`.

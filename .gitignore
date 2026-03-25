@@ -13,3 +13,6 @@
 # --- PERMITIR CARPETA DE CAPTURAS ---
 !screenshots/
 !screenshots/*
+# --- PERMITIR CARPETA DE VERSIONES ---
+!Versiones/
+!Versiones/**

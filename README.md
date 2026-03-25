@@ -33,6 +33,24 @@ Este mod inyecta mejoras de calidad de vida (QoL) y herramientas de depuración 
 
 ---
 
+## 📦 Elige tu versión (4 vs 8 Movimientos)
+
+Este repositorio ofrece dos experiencias distintas para adaptarse a tu estilo de juego. Puedes encontrar los archivos listos para usar en la carpeta [`Versiones/`](./Versiones):
+
+1.  **Versión Expandida (8 Movimientos)**:
+    *   **Ubicación**: Carpeta raíz (es la versión por defecto) o en [`Versiones/Expanded_8_Movimientos`](./Versiones/Expanded_8_Movimientos).
+    *   **Qué incluye**: Soporte para hasta 8 ataques por Pokémon, UI de resumen paginada, y todas las mejoras de QoL y Debug.
+2.  **Versión Clásica (4 Movimientos)**:
+    *   **Ubicación**: [`Versiones/Classic_4_Movimientos`](./Versiones/Classic_4_Movimientos).
+    *   **Qué incluye**: Mantiene el límite original de 4 movimientos de Essentials, pero conserva todas las demás mejoras de Debug y QoL (HUD, buscador, etc.).
+
+### Cómo cambiar de versión:
+1. Entra en la carpeta de la versión que prefieras dentro de `Versiones/`.
+2. Copia el archivo `preload.rb` de esa carpeta.
+3. Pégalo en la raíz de tu juego (donde está el ejecutable .exe), reemplazando el archivo anterior.
+
+---
+
 ## ⚡ Instalación en 1 minuto (Copiar y Pegar)
 
 1. **Descarga el ZIP** de este repositorio (o clónalo).
