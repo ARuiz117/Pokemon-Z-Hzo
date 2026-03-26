@@ -1429,10 +1429,9 @@ module Graphics
             yPos = (moveToLearn != 0) ? 18 : 98
             
             # Rango de movimientos a mostrar (0-3 o 4-7)
-            # Rango de movimientos a mostrar (0-3 o 4-7)
-            if @sprites["movesel"].index == 8
-              @move_scroll = (@pokemon.numMoves > 4) ? 4 : 0
-            else
+            # Solo actualizamos @move_scroll si NO estamos seleccionando el nuevo move (8)
+            # Esto permite ver el nuevo move desde cualquier pestaña sin saltar.
+            if @sprites["movesel"].index != 8
               @move_scroll = (@sprites["movesel"].index >= 4) ? 4 : 0
             end
             
@@ -1538,67 +1537,76 @@ module Graphics
               if Input.trigger?(Input::B); ret = 8; break; end
               if Input.trigger?(Input::C) && (@page == 3 || @page == 4); break; end
               
-              if Input.trigger?(Input::DOWN) && (@page == 3 || @page == 4)
-                v_idx = (v_idx + 1) % valid_slots.length
-                selmove = valid_slots[v_idx]
-                
+              moving = false
+              if Input.trigger?(Input::DOWN)
                 if selmove == 8
-                  @sprites["movesel"].index = 8
-                  @move_scroll = (@pokemon.numMoves > 4) ? 4 : 0
+                  selmove = (@page == 3) ? 0 : 4
+                elsif (selmove == 3 && @page == 3) || (selmove == 7 && @page == 4)
+                  selmove = 8
                 else
-                  @sprites["movesel"].index = selmove
-                  @move_scroll = (selmove >= 4) ? 4 : 0
+                  # Intentar mover al siguiente si existe
+                  test_move = selmove + 1
+                  if @pokemon.moves[test_move] && @pokemon.moves[test_move].id > 0
+                    selmove = test_move
+                  else
+                    selmove = 8
+                  end
                 end
-                
-                newmove = (selmove == 8) ? moveToLearn : @pokemon.moves[selmove].id
-                drawMoveSelection(@pokemon, moveToLearn)
-                drawSelectedMove(@pokemon, moveToLearn, newmove)
-                pbPlayCursorSE()
-                
-              elsif Input.trigger?(Input::UP) && (@page == 3 || @page == 4)
-                v_idx = (v_idx - 1) % valid_slots.length
-                selmove = valid_slots[v_idx]
-
+                moving = true
+              elsif Input.trigger?(Input::UP)
                 if selmove == 8
-                  @sprites["movesel"].index = 8
-                  @move_scroll = (@pokemon.numMoves > 4) ? 4 : 0
+                  # Ir al último válido de la página actual
+                  if @page == 3
+                    selmove = 3
+                  else
+                    # Buscar último válido en 4-7
+                    selmove = 4
+                    for i in 4..7
+                      selmove = i if @pokemon.moves[i] && @pokemon.moves[i].id > 0
+                    end
+                  end
+                elsif (selmove == 0 && @page == 3) || (selmove == 4 && @page == 4)
+                  selmove = 8
                 else
-                  @sprites["movesel"].index = selmove
-                  @move_scroll = (selmove >= 4) ? 4 : 0
+                  selmove -= 1
                 end
-                
-                newmove = (selmove == 8) ? moveToLearn : @pokemon.moves[selmove].id
-                drawMoveSelection(@pokemon, moveToLearn)
-                drawSelectedMove(@pokemon, moveToLearn, newmove)
-                pbPlayCursorSE()
-                
+                moving = true
               elsif Input.trigger?(Input::LEFT) || Input.trigger?(Input::RIGHT)
-                # Cambiar de página (0:Info, 1:Memo, 2:Stats, 3:Moves1, 4:Moves2)
-                if Input.trigger?(Input::LEFT)
-                  @page = (@page - 1) % 6
+                # Cambiar de "Pestaña" (Moves 1 <-> Moves 2)
+                @page = (@page == 3) ? 4 : 3
+                if selmove != 8
+                  # Intentar mantener la misma posición visual (0-3 <-> 4-7)
+                  new_sel = (selmove < 4) ? selmove + 4 : selmove - 4
+                  if @pokemon.moves[new_sel] && @pokemon.moves[new_sel].id > 0
+                    selmove = new_sel
+                  else
+                    # Si no existe el equivalente, buscar el primer válido de la página
+                    selmove = (@page == 3) ? 0 : 4
+                  end
+                end
+                moving = true
+              end
+              
+              if moving
+                @sprites["movesel"].index = selmove
+                # Forzar @move_scroll según selmove o página forzada
+                if selmove == 8
+                   @move_scroll = (@page == 4) ? 4 : 0
                 else
-                  @page = (@page + 1) % 6
+                   @move_scroll = (selmove >= 4) ? 4 : 0
+                   @page = (selmove >= 4) ? 4 : 3 # Sincronizar pág si nos movemos por flechas
                 end
                 
                 pbPlayCursorSE()
                 case @page
-                when 0; drawPageOne(@pokemon)
-                when 1; drawPageTwo(@pokemon)
-                when 2; drawPageThree(@pokemon)
                 when 3; drawPageMoves1(@pokemon); @move_scroll = 0
                 when 4; drawPageMoves2(@pokemon); @move_scroll = 4
-                when 5; drawPageFive(@pokemon) rescue nil
                 end
                 
-                # Sincronizar UI si estamos en páginas de movimientos
-                if @page >= 3
-                  @sprites["movesel"].visible = true
-                  drawMoveSelection(@pokemon, moveToLearn)
-                  new_m_id = (selmove == 8) ? moveToLearn : @pokemon.moves[selmove].id
-                  drawSelectedMove(@pokemon, moveToLearn, new_m_id)
-                else
-                  @sprites["movesel"].visible = false
-                end
+                @sprites["movesel"].visible = true
+                drawMoveSelection(@pokemon, moveToLearn)
+                new_m_id = (selmove == 8) ? moveToLearn : @pokemon.moves[selmove].id
+                drawSelectedMove(@pokemon, moveToLearn, new_m_id)
               end
             end
             return (ret == 8) ? -1 : ret
